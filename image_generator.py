@@ -18,5 +18,4 @@ def generate_image(client: InferenceClient, prompt: str, width: int, height: int
         return generated_image
     except Exception as e:
         print(f"An error occurred during image generation: {e}")
-        print("Possible causes: The model may be loading, the service is busy, or the resolution is not supported.")
         return None

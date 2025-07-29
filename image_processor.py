@@ -25,6 +25,51 @@ def remove_background(img: Image.Image) -> Image.Image:
     # The rembg.remove function handles all the complexity.
     return rembg.remove(img)
 
+def crop_and_pad_to_square(img: Image.Image) -> Image.Image:
+    """
+    Crops an image to its content, then pads it with transparency to make it square.
+
+    This preserves the original aspect ratio of the object by creating a square
+    canvas based on the object's longest side and centering the object within it.
+
+    Args:
+        img: The input PIL Image, expected to have an alpha channel.
+
+    Returns:
+        A new, square PIL Image with the original content centered.
+    """
+    # Ensure the image has an alpha channel
+    img = img.convert("RGBA")
+
+    # Get the bounding box of the non-alpha part of the image
+    bbox = img.getbbox()
+
+    if not bbox:
+        # If the image is completely transparent, return it as is
+        print("Warning: Image is fully transparent. Skipping crop and pad.")
+        return img
+
+    # Crop the image to the content
+    cropped_img = img.crop(bbox)
+
+    # Determine the longest side of the cropped content
+    width, height = cropped_img.size
+    max_side = max(width, height)
+
+    # Create a new square canvas with a transparent background
+    print(f"Framing content in a new {max_side}x{max_side} square canvas...")
+    square_canvas = Image.new("RGBA", (max_side, max_side), (0, 0, 0, 0))
+
+    # Calculate the position to paste the cropped image to center it
+    paste_x = (max_side - width) // 2
+    paste_y = (max_side - height) // 2
+
+    # Paste the cropped image onto the square canvas
+    square_canvas.paste(cropped_img, (paste_x, paste_y))
+
+    return square_canvas
+
+
 def process_and_save_image(
     original_image: Image.Image,
     prompt: str,
@@ -33,7 +78,7 @@ def process_and_save_image(
 ) -> None:
     """
     Processes a newly generated image: saves the original, removes the background,
-    resizes it, and saves the final version.
+    frames it in a square, resizes it, and saves the final version.
     This function is used by the main generation pipeline.
     """
     os.makedirs(config.ORIGINAL_FOLDER, exist_ok=True)
@@ -45,24 +90,27 @@ def process_and_save_image(
     original_image.save(original_filepath)
     print(f"-> Original image saved to: '{original_filepath}'")
 
-    # --- Automatically apply AI background removal ---
-    # No conditional checks needed, we always apply the best method.
+    # --- Step 1: Automatically apply AI background removal ---
     processed_image = remove_background(original_image)
 
-    # --- Resize to final pixel art dimensions ---
+    # --- Step 2: Crop and pad to a square to preserve aspect ratio ---
+    processed_image = crop_and_pad_to_square(processed_image)
+
+    # --- Step 3: Resize to final pixel art dimensions ---
+    print(f"Resizing image to {config.FINAL_WIDTH}x{config.FINAL_HEIGHT} pixels...")
     final_image = processed_image.resize(
         (config.FINAL_WIDTH, config.FINAL_HEIGHT),
         resample=Image.NEAREST
     )
 
-    # --- Save the final processed image ---
+    # --- Step 4: Save the final processed image ---
     final_filename = f"pixelart_{timestamp}_{config.FINAL_WIDTH}x{config.FINAL_HEIGHT}.png"
     final_filepath = os.path.join(config.FINAL_FOLDER, final_filename)
     final_image.save(final_filepath)
     print(f"-> Final image saved to: '{final_filepath}'")
 
 
-# --- Interactive Standalone Execution (SIMPLIFIED) ---
+# --- Interactive Standalone Execution (MODIFIED) ---
 
 def run_interactive_mode():
     """
@@ -104,14 +152,15 @@ def run_interactive_mode():
     print(f"\n> You selected: '{selected_filename}'")
 
     # --- Simplified yes/no prompt ---
-    apply_transparency = False
+    apply_processing = False
     while True:
-        choice = input("> Apply AI background removal? (y/n): ").lower().strip()
+        # Updated prompt to be more accurate
+        choice = input("> Apply background removal and square framing (preserves aspect ratio)? (y/n): ").lower().strip()
         if choice in ['y', 'yes']:
-            apply_transparency = True
+            apply_processing = True
             break
         elif choice in ['n', 'no']:
-            apply_transparency = False
+            apply_processing = False
             break
         else:
             print("Invalid input. Please enter 'y' or 'n'.")
@@ -123,13 +172,14 @@ def run_interactive_mode():
         print(f"Error: Could not open or read image file. Reason: {e}")
         return
 
-    # Step 1: Apply AI transparency if requested
-    if apply_transparency:
+    # Step 1: Apply transparency and framing if requested
+    if apply_processing:
         image_to_process = remove_background(image_to_process)
+        image_to_process = crop_and_pad_to_square(image_to_process)
     else:
-        print("Skipping background removal.")
+        print("Skipping background removal and framing.")
 
-    # Step 2: Resize AFTER transparency has been applied
+    # Step 2: Resize AFTER optional processing has been applied
     print(f"Resizing image to {config.FINAL_WIDTH}x{config.FINAL_HEIGHT} pixels...")
     final_image = image_to_process.resize(
         (config.FINAL_WIDTH, config.FINAL_HEIGHT),

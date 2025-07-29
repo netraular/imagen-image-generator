@@ -6,6 +6,7 @@ import os
 BASE_OUTPUT_FOLDER = "generated_images"
 ORIGINAL_FOLDER = os.path.join(BASE_OUTPUT_FOLDER, "originals")
 FINAL_FOLDER = os.path.join(BASE_OUTPUT_FOLDER, "pixel_art")
+BATCH_INPUT_FOLDER = "batch_input" # New folder for automatic processing
 
 # --- Model Configuration ---
 MODEL_ID = "black-forest-labs/FLUX.1-dev"

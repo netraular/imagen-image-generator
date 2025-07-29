@@ -1,6 +1,6 @@
 # Hugging Face API Image Generator
 
-This project uses the Hugging Face Inference API to generate images from a text prompt and then processes them into pixel art assets. It features a powerful, AI-based background removal tool, an aspect-ratio-preserving framing step, and an interactive mode for reprocessing existing images.
+This project uses the Hugging Face Inference API to generate images from a text prompt and then processes them into pixel art assets. It features a powerful, AI-based background removal tool, an aspect-ratio-preserving framing step, and a dedicated script for automatic batch processing.
 
 ## Features
 
@@ -8,9 +8,9 @@ This project uses the Hugging Face Inference API to generate images from a text 
 -   **Text-to-Image Generation**: Creates an image from a text description in `prompt.txt`.
 -   **AI-Powered Background Removal**: Automatically uses the `rembg` library to accurately remove backgrounds.
 -   **Aspect Ratio Preservation**: After background removal, the object is framed within a square canvas, adding transparent padding as needed. This ensures the object is not stretched or distorted when resized.
--   **Centralized Configuration**: All key settings (model ID, image dimensions) are in `config.py`.
+-   **Centralized Configuration**: All key settings (model ID, image dimensions, folders) are in `config.py`.
 -   **Secure API Key Handling**: Uses a `.env` file to keep your API token safe and private.
--   **Interactive Reprocessing**: Run `image_processor.py` to choose an existing image and re-apply processing settings, saving you from re-generating images.
+-   **Automatic Batch Processing**: Simply add images to the `batch_input/` folder and run a script to process them all automatically.
 -   **Organized File Output**: Saves original and processed images into `generated_images/originals/` and `generated_images/pixel_art/`.
 
 ## Requirements
@@ -38,14 +38,13 @@ This project uses the Hugging Face Inference API to generate images from a text 
     ```txt
     A magical glowing sword, pixel art, white background
     ```
+5.  **Create a `batch_input` folder** in the project's root directory. This is where you will place images for processing.
 
 ## How to Use
 
-This project has two main uses: generating a new image, or reprocessing an existing one.
-
 ### Usage 1: Generating a New Image
 
-This is the main workflow for creating a brand new asset. The processing pipeline is applied automatically.
+This workflow creates a brand new asset from a text prompt.
 
 1.  Edit the `prompt.txt` file with your desired image description.
 2.  (Optional) Adjust settings in `config.py` (model, dimensions, etc.).
@@ -55,24 +54,22 @@ This is the main workflow for creating a brand new asset. The processing pipelin
     ```
 4.  The script will:
     -   Generate the image from your prompt.
-    -   Remove the background.
-    -   Frame the object in a square canvas to preserve its aspect ratio.
-    -   Resize it to the final dimensions.
-    -   Save both the original and final versions in the `generated_images/` folder.
+    -   Save the original in `generated_images/originals/`.
+    -   Remove the background, frame it, and resize it.
+    -   Save the final version in `generated_images/pixel_art/`.
 
-### Usage 2: Reprocessing an Existing Image
+### Usage 2: Processing Existing Images in Batch
 
-Use this to re-apply processing to an image you've already generated, without calling the API again.
+Use this to automatically process one or more of your own images.
 
-1.  Run the image processor script **without any arguments**:
+1.  Place any images you want to process (e.g., `.png`, `.jpg`) into the `batch_input` folder.
+2.  Run the image processor script from your terminal:
     ```bash
     python image_processor.py
     ```
-2.  The script will list all images in the `generated_images/originals/` folder.
-3.  Enter the number corresponding to the image you want to process.
-4.  You will be asked if you want to apply background removal and square framing. Answer `y` (yes) or `n` (no).
-5.  The new processed image will be saved in the `generated_images/pixel_art/` folder.
+3.  The script will automatically find and process every image in the `batch_input` folder using the standard pipeline (background removal, framing, and resizing).
+4.  All processed images will be saved in the `generated_images/pixel_art/` folder.
 
 ## Customization
 
--   **`config.py`**: Change the `MODEL_ID`, `GEN_WIDTH`, `GEN_HEIGHT`, `FINAL_WIDTH`, or `FINAL_HEIGHT` to fit your needs.
+-   **`config.py`**: Change the `MODEL_ID`, `GEN_WIDTH`, `GEN_HEIGHT`, `FINAL_WIDTH`, or `FINAL_HEIGHT` to fit your needs. You can also change the name of the `BATCH_INPUT_FOLDER`.

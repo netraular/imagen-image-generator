@@ -3,93 +3,70 @@
 import os
 from PIL import Image
 from datetime import datetime
-from collections import deque
+import rembg
 
-# Importamos config para usar las dimensiones y rutas
+# Import config to use dimensions and paths
 import config
 
-def _make_background_transparent_flood_fill(img: Image.Image, threshold: int = 60, seed_pos: tuple = (0, 0)) -> Image.Image:
+def remove_background(img: Image.Image) -> Image.Image:
     """
-    Usa un algoritmo de relleno por inundación (flood fill) para hacer transparente el fondo.
+    Uses the 'rembg' library to remove the background using a pre-trained AI model.
 
-    Este método es mucho más preciso porque solo elimina los píxeles que están conectados
-    a un punto de partida (la semilla) y tienen un color similar. Esto evita que se eliminen
-    partes blancas o claras del objeto principal.
+    This is the primary method for background removal due to its high accuracy
+    with both simple and complex backgrounds.
 
     Args:
-        img: La imagen de entrada de PIL.
-        threshold: Tolerancia de color para considerar un píxel como parte del fondo.
-        seed_pos: La coordenada (x, y) desde donde empezar a "inundar" el fondo.
-                  Por defecto es (0,0), la esquina superior izquierda.
+        img: The input PIL Image.
 
     Returns:
-        Una nueva imagen de PIL con el fondo transparente.
+        A new PIL Image with the background removed.
     """
-    img = img.convert("RGBA")
-    pixel_data = img.load()
-    width, height = img.size
+    print("Applying AI background removal... This might take a moment.")
+    # The rembg.remove function handles all the complexity.
+    return rembg.remove(img)
 
-    # Color del píxel de partida (semilla)
-    seed_color = pixel_data[seed_pos]
-    
-    # Cola para el algoritmo de relleno (Breadth-First Search)
-    q = deque([seed_pos])
-    
-    # Conjunto para llevar registro de los píxeles ya visitados
-    visited = set([seed_pos])
-
-    while q:
-        x, y = q.popleft()
-
-        # Comprobar si el color del píxel actual está dentro del umbral del color semilla
-        current_color = pixel_data[x, y]
-        color_diff = sum(abs(current_color[i] - seed_color[i]) for i in range(3))
-
-        if color_diff <= threshold:
-            # Si es similar, lo hacemos transparente y añadimos sus vecinos a la cola
-            pixel_data[x, y] = (255, 255, 255, 0) # Lo hacemos transparente
-
-            # Explorar vecinos (arriba, abajo, izquierda, derecha)
-            for nx, ny in [(x+1, y), (x-1, y), (x, y+1), (x, y-1)]:
-                if 0 <= nx < width and 0 <= ny < height and (nx, ny) not in visited:
-                    q.append((nx, ny))
-                    visited.add((nx, ny))
-    
-    return img
-
-# --- Mantenemos la función original por si acaso, pero ya no la usaremos en el modo interactivo ---
 def process_and_save_image(
     original_image: Image.Image,
     prompt: str,
     timestamp: str,
     config: object
 ) -> None:
-    # ... (El código de esta función no necesita cambios, ya que usa su propia lógica de prompt)
+    """
+    Processes a newly generated image: saves the original, removes the background,
+    resizes it, and saves the final version.
+    This function is used by the main generation pipeline.
+    """
     os.makedirs(config.ORIGINAL_FOLDER, exist_ok=True)
     os.makedirs(config.FINAL_FOLDER, exist_ok=True)
+
+    # --- Save the original high-resolution image first ---
     original_filename = f"original_{timestamp}_{config.GEN_WIDTH}x{config.GEN_HEIGHT}.png"
     original_filepath = os.path.join(config.ORIGINAL_FOLDER, original_filename)
     original_image.save(original_filepath)
     print(f"-> Original image saved to: '{original_filepath}'")
-    final_image = original_image.resize(
+
+    # --- Automatically apply AI background removal ---
+    # No conditional checks needed, we always apply the best method.
+    processed_image = remove_background(original_image)
+
+    # --- Resize to final pixel art dimensions ---
+    final_image = processed_image.resize(
         (config.FINAL_WIDTH, config.FINAL_HEIGHT),
         resample=Image.NEAREST
     )
-    if "white background" in prompt.lower():
-        print("-> 'white background' detected. Applying smart transparency...")
-        # Podríamos actualizar esto para que también use el método nuevo
-        final_image = _make_background_transparent_flood_fill(final_image)
+
+    # --- Save the final processed image ---
     final_filename = f"pixelart_{timestamp}_{config.FINAL_WIDTH}x{config.FINAL_HEIGHT}.png"
     final_filepath = os.path.join(config.FINAL_FOLDER, final_filename)
     final_image.save(final_filepath)
     print(f"-> Final image saved to: '{final_filepath}'")
 
 
-# --- Ejecución Independiente e Interactiva (ACTUALIZADA) ---
+# --- Interactive Standalone Execution (SIMPLIFIED) ---
 
 def run_interactive_mode():
     """
-    Ejecuta un menú interactivo en la consola para procesar una imagen existente.
+    Runs a simplified interactive console menu to re-process an existing image.
     """
     print("--- Image Processor Interactive Mode ---")
     if not os.path.isdir(config.ORIGINAL_FOLDER):
@@ -126,9 +103,10 @@ def run_interactive_mode():
     input_path = os.path.join(config.ORIGINAL_FOLDER, selected_filename)
     print(f"\n> You selected: '{selected_filename}'")
 
+    # --- Simplified yes/no prompt ---
     apply_transparency = False
     while True:
-        choice = input("> Apply SMART transparency to remove the background? (y/n): ").lower().strip()
+        choice = input("> Apply AI background removal? (y/n): ").lower().strip()
         if choice in ['y', 'yes']:
             apply_transparency = True
             break
@@ -145,19 +123,18 @@ def run_interactive_mode():
         print(f"Error: Could not open or read image file. Reason: {e}")
         return
 
-    # --- ORDEN DE OPERACIONES CORREGIDO ---
-    # Paso 1: Aplicar transparencia PRIMERO, sobre la imagen de alta resolución
+    # Step 1: Apply AI transparency if requested
     if apply_transparency:
-        print("Applying SMART transparency (flood fill) on the original image...")
-        image_to_process = _make_background_transparent_flood_fill(image_to_process)
+        image_to_process = remove_background(image_to_process)
+    else:
+        print("Skipping background removal.")
 
-    # Paso 2: Escalar DESPUÉS, una vez que el fondo ya está eliminado
+    # Step 2: Resize AFTER transparency has been applied
     print(f"Resizing image to {config.FINAL_WIDTH}x{config.FINAL_HEIGHT} pixels...")
     final_image = image_to_process.resize(
         (config.FINAL_WIDTH, config.FINAL_HEIGHT),
         resample=Image.NEAREST
     )
-    # --- FIN DEL CAMBIO ---
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     final_filename = f"pixelart_{timestamp}_{config.FINAL_WIDTH}x{config.FINAL_HEIGHT}.png"

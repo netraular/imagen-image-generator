@@ -16,5 +16,5 @@ GEN_WIDTH = 256
 GEN_HEIGHT = 256
 
 # Final desired dimensions for the pixel art asset
-FINAL_WIDTH = 32
-FINAL_HEIGHT = 32
+FINAL_WIDTH = 64
+FINAL_HEIGHT = 64

@@ -1,4 +1,5 @@
 .env
 __pycache__
+.vscode
 generated_images/
 prompt.txt

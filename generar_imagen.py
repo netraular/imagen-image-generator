@@ -58,7 +58,7 @@ except FileNotFoundError:
 
 # --- 2. Set up API Client ---
 print(f"Using model: {MODEL_ID}")
-client = InferenceClient(model=MODELO_ID, token=api_token)
+client = InferenceClient(model=MODEL_ID, token=api_token)
 
 # --- 3. Generate Image ---
 print(f"Generating base image of {GEN_WIDTH}x{GEN_HEIGHT} pixels... This may take a moment.")

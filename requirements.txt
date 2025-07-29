@@ -1,0 +1,4 @@
+# requirements.txt
+python-dotenv
+huggingface_hub
+Pillow
